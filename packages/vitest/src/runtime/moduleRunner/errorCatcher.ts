@@ -5,6 +5,7 @@ import { serializeValue } from '@vitest/utils/serialize'
 const processListeners = process.listeners.bind(process)
 const processOn = process.on.bind(process)
 const processOff = process.off.bind(process)
+const processExit = process.exit.bind(process)
 
 const dispose: (() => void)[] = []
 
@@ -30,7 +31,26 @@ export function listenForErrors(state: () => WorkerGlobalState): void {
         error.VITEST_TEST_PATH = worker.filepath
       }
     }
-    state().rpc.onUnhandledError(error, type)
+    // when the IPC channel to the main process is dead (a forks worker
+    // orphaned by a main process that died without pool teardown), the
+    // report would reject, come right back here as an unhandled rejection
+    // and loop forever until OOM — exit the worker instead
+    if (process.connected === false) {
+      processExit(1)
+      return
+    }
+
+    state().rpc.onUnhandledError(error, type).catch((rpcError: any) => {
+      // the rejection must not float back into this handler; exit when the
+      // channel is dead, there is no way to report the error anymore
+      if (
+        process.connected === false
+        || rpcError?.code === 'ERR_IPC_CHANNEL_CLOSED'
+        || rpcError?.code === 'EPIPE'
+      ) {
+        processExit(1)
+      }
+    })
   }
 
   const uncaughtException = (e: Error) => catchError(e, 'Uncaught Exception', 'uncaughtException')

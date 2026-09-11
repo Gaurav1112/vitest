@@ -28,6 +28,11 @@ if (isProfiling) {
 
 processOn('error', onError)
 
+// The pool always tears workers down with SIGTERM/SIGKILL and never
+// disconnects the IPC channel, so a disconnect means the main process died
+// without pool teardown — exit instead of lingering as an orphan
+processOn('disconnect', () => processExit(1))
+
 export default function workerInit(options: {
   runTests: (method: 'run' | 'collect', state: WorkerGlobalState, traces: Traces) => Promise<void>
   setup?: (context: WorkerSetupContext) => void | Promise<() => Promise<unknown>>
