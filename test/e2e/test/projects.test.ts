@@ -769,6 +769,36 @@ describe('nested projects', () => {
     expect(ctx!.projects.map(project => project.config.maxWorkers)).toEqual([3])
   })
 
+  it('cli --maxConcurrency reaches projects', async () => {
+    const { stderr, ctx } = await runInlineTests({
+      'vitest.config.js': {
+        test: {
+          projects: [
+            { test: { name: 'unit' } },
+          ],
+        },
+      },
+      'basic.test.js': basicTest,
+    }, { $cliOptions: { maxConcurrency: 1 } })
+    expect(stderr).toBe('')
+    expect(ctx!.projects.map(project => project.config.maxConcurrency)).toEqual([1])
+  })
+
+  it('cli --strictTags reaches projects', async () => {
+    const { stderr, ctx } = await runInlineTests({
+      'vitest.config.js': {
+        test: {
+          projects: [
+            { test: { name: 'unit' } },
+          ],
+        },
+      },
+      'basic.test.js': basicTest,
+    }, { $cliOptions: { strictTags: false } })
+    expect(stderr).toBe('')
+    expect(ctx!.projects.map(project => project.config.strictTags)).toEqual([false])
+  })
+
   it('benchmark projects are created for nested projects', async () => {
     const { stderr, ctx } = await runInlineTests({
       'vitest.config.js': {
